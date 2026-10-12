@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5faf8">
+<title>普通話・声調聞き分けクイズ</title>
+<style>
+:root{color-scheme:light;--ink:#1e3635;--muted:#647775;--green:#176963;--green2:#e8f4f0;--line:#d7e8e1;--bg:#f5faf8;--red:#b34d44;--redbg:#fff0ee}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;line-height:1.55}
+main{max-width:660px;margin:0 auto;padding:28px 20px 54px}
+header{text-align:center;margin-bottom:25px}
+h1{font-size:clamp(23px,5.3vw,32px);letter-spacing:.03em;margin:5px 0 6px;font-weight:800}
+.lede{font-size:14px;color:var(--muted);margin:0}
+.mode{display:flex;align-items:center;justify-content:center;gap:8px;margin:21px 0 0;flex-wrap:wrap}
+.mode label{position:relative;cursor:pointer}
+.mode input{position:absolute;opacity:0;inset:0}
+.mode span{display:block;padding:7px 13px;border:1px solid var(--line);border-radius:100px;background:white;color:#44625f;font-size:13px;font-weight:700;transition:background .15s}
+.mode input:checked+span{background:var(--green);color:white;border-color:var(--green)}
+.mode input:focus-visible+span{outline:3px solid #7fbbb2;outline-offset:2px}
+.streak{margin:0 0 17px;text-align:center;font-size:15px;font-weight:750;color:#345e54}
+.streak strong{font-size:19px;color:#176963;font-variant-numeric:tabular-nums}
+.streak.celebrate{animation:streak-pop .45s ease-out}
+@keyframes streak-pop{0%{transform:scale(1)}45%{transform:scale(1.10)}100%{transform:scale(1)}}
+.card{border:1px solid var(--line);background:white;border-radius:25px;padding:26px 23px 24px;box-shadow:0 10px 26px rgba(26,71,60,.045)}
+.instruction{font-weight:800;font-size:18px;text-align:center;margin:0 0 20px}
+.play{width:100%;min-height:124px;border-radius:19px;border:2px solid #bcd9d0;background:#edf7f2;color:var(--green);cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;transition:filter .12s,transform .12s}
+.play:active{transform:scale(.99)}.play:focus-visible,.tone:focus-visible{outline:3px solid #83bfb1;outline-offset:3px}
+.play .speaker{font-size:38px;line-height:1.1}.play .label{font-size:20px;font-weight:800}
+#message{min-height:21px;font-size:13px;color:var(--muted);text-align:center;margin:10px 0 14px}
+.answer{min-height:0;padding:0;margin:0;transition:all .12s}
+.answer:not([hidden]){border:1px solid var(--line);background:#eef8f2;padding:15px 17px;border-radius:15px;margin:0 0 15px}
+.answer.success:not([hidden]){border:3px solid #158350;background:#d6f6e3;box-shadow:0 3px 0 rgba(21,131,80,.10)}
+.answer.wrong:not([hidden]){border-color:#f0c7c0;background:var(--redbg)}
+.answer .line1{font-weight:900;font-size:20px;margin-bottom:2px}
+.answer.success .line1{color:#086a40;font-size:30px;line-height:1.25;margin-bottom:8px}
+.answer.wrong .line1{color:var(--red)}
+.answer .detail{font-size:17px}
+.answer .detail strong{font-size:23px;margin-right:10px}
+.answer .minor{font-size:12px;color:var(--muted);margin-top:5px}
+.prompt{font-size:15px;font-weight:700;text-align:center;margin:12px 0 11px;color:#486561}
+.tones{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tone{min-height:76px;background:white;border:2px solid #cde1d9;border-radius:17px;font-size:35px;font-weight:800;color:var(--ink);cursor:pointer;transition:background .12s,border-color .12s}
+.tone:hover:not(:disabled){background:#eff8f4;border-color:#7ebbad}
+.tone:disabled{cursor:default;opacity:1}
+.tone.correct{background:#d6efe2;border-color:#198668;color:#0d6550}
+.tone.incorrect{background:#ffe2dd;border-color:#c3655b;color:#ad493f}
+.tone.muted{background:#fafcfb;color:#82928e;border-color:#e1e9e6}
+.footnote{font-size:12px;color:#718783;text-align:center;margin:20px 8px;line-height:1.7}
+.footnote a{color:#456f67}
+[hidden]{display:none!important}
+@media(max-width:390px){main{padding:18px 12px 35px}.card{padding:19px 14px;border-radius:21px}.tone{min-height:65px;font-size:29px}.tones{gap:7px}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>普通話・声調聞き分けクイズ</h1><p class="lede">音だけを頼りに、4つの声調を聞き分けよう</p></header>
+<div id="streak" class="streak" aria-live="polite">🔥 連続正解：<strong id="streakCount">0</strong>問</div>
+<section class="card">
+  <p class="instruction">聞こえた音は、第何声？</p>
+  <button type="button" class="play" id="play"><span class="speaker" aria-hidden="true">🔊</span><span class="label">音声を聞く</span></button>
+  <p id="message" role="status" aria-live="polite">何度でも聞き直せます</p>
+  <div id="answer" class="answer" hidden aria-live="polite"></div>
+  <p class="prompt">声調を選んでください</p>
+  <div id="tones" class="tones" role="group" aria-label="声調を回答">
+    <button class="tone" type="button" data-tone="1" aria-label="第1声">1</button>
+    <button class="tone" type="button" data-tone="2" aria-label="第2声">2</button>
+    <button class="tone" type="button" data-tone="3" aria-label="第3声">3</button>
+    <button class="tone" type="button" data-tone="4" aria-label="第4声">4</button>
+  </div>
+  <div class="mode" role="group" aria-label="練習モード">
+    <label><input type="radio" name="mode" value="random" checked><span>ランダム練習</span></label>
+    <label><input type="radio" name="mode" value="same"><span>同じ音節で練習</span></label>
+  </div>
+</section>
+<p class="footnote">インターネット接続が必要です。音声：<a href="https://github.com/davinfifield/mp3-chinese-pinyin-sound" target="_blank" rel="noopener">davinfifield / mp3-chinese-pinyin-sound</a>（Unlicense）</p>
+</main>
+<script>
+'use strict';
+const WORDS = [{"han":"妈","pinyin":"ma1","tone":1},{"han":"天","pinyin":"tian1","tone":1},{"han":"书","pinyin":"shu1","tone":1},{"han":"花","pinyin":"hua1","tone":1},{"han":"山","pinyin":"shan1","tone":1},{"han":"东","pinyin":"dong1","tone":1},{"han":"西","pinyin":"xi1","tone":1},{"han":"风","pinyin":"feng1","tone":1},{"han":"星","pinyin":"xing1","tone":1},{"han":"飞","pinyin":"fei1","tone":1},{"han":"师","pinyin":"shi1","tone":1},{"han":"新","pinyin":"xin1","tone":1},{"han":"森","pinyin":"sen1","tone":1},{"han":"生","pinyin":"sheng1","tone":1},{"han":"高","pinyin":"gao1","tone":1},{"han":"工","pinyin":"gong1","tone":1},{"han":"开","pinyin":"kai1","tone":1},{"han":"春","pinyin":"chun1","tone":1},{"han":"秋","pinyin":"qiu1","tone":1},{"han":"多","pinyin":"duo1","tone":1},{"han":"中","pinyin":"zhong1","tone":1},{"han":"家","pinyin":"jia1","tone":1},{"han":"街","pinyin":"jie1","tone":1},{"han":"车","pinyin":"che1","tone":1},{"han":"猫","pinyin":"mao1","tone":1},{"han":"鸡","pinyin":"ji1","tone":1},{"han":"包","pinyin":"bao1","tone":1},{"han":"关","pinyin":"guan1","tone":1},{"han":"听","pinyin":"ting1","tone":1},{"han":"吃","pinyin":"chi1","tone":1},{"han":"人","pinyin":"ren2","tone":2},{"han":"来","pinyin":"lai2","tone":2},{"han":"学","pinyin":"xue2","tone":2},{"han":"读","pinyin":"du2","tone":2},{"han":"国","pinyin":"guo2","tone":2},{"han":"河","pinyin":"he2","tone":2},{"han":"红","pinyin":"hong2","tone":2},{"han":"黄","pinyin":"huang2","tone":2},{"han":"鱼","pinyin":"yu2","tone":2},{"han":"云","pinyin":"yun2","tone":2},{"han":"牛","pinyin":"niu2","tone":2},{"han":"头","pinyin":"tou2","tone":2},{"han":"皮","pinyin":"pi2","tone":2},{"han":"桃","pinyin":"tao2","tone":2},{"han":"球","pinyin":"qiu2","tone":2},{"han":"茶","pinyin":"cha2","tone":2},{"han":"钱","pinyin":"qian2","tone":2},{"han":"朋","pinyin":"peng2","tone":2},{"han":"门","pinyin":"men2","tone":2},{"han":"林","pinyin":"lin2","tone":2},{"han":"明","pinyin":"ming2","tone":2},{"han":"牙","pinyin":"ya2","tone":2},{"han":"盐","pinyin":"yan2","tone":2},{"han":"羊","pinyin":"yang2","tone":2},{"han":"熊","pinyin":"xiong2","tone":2},{"han":"竹","pinyin":"zhu2","tone":2},{"han":"词","pinyin":"ci2","tone":2},{"han":"层","pinyin":"ceng2","tone":2},{"han":"平","pinyin":"ping2","tone":2},{"han":"田","pinyin":"tian2","tone":2},{"han":"马","pinyin":"ma3","tone":3},{"han":"水","pinyin":"shui3","tone":3},{"han":"小","pinyin":"xiao3","tone":3},{"han":"你","pinyin":"ni3","tone":3},{"han":"我","pinyin":"wo3","tone":3},{"han":"手","pinyin":"shou3","tone":3},{"han":"口","pinyin":"kou3","tone":3},{"han":"眼","pinyin":"yan3","tone":3},{"han":"耳","pinyin":"er3","tone":3},{"han":"狗","pinyin":"gou3","tone":3},{"han":"火","pinyin":"huo3","tone":3},{"han":"好","pinyin":"hao3","tone":3},{"han":"米","pinyin":"mi3","tone":3},{"han":"果","pinyin":"guo3","tone":3},{"han":"雨","pinyin":"yu3","tone":3},{"han":"早","pinyin":"zao3","tone":3},{"han":"草","pinyin":"cao3","tone":3},{"han":"鸟","pinyin":"niao3","tone":3},{"han":"海","pinyin":"hai3","tone":3},{"han":"跑","pinyin":"pao3","tone":3},{"han":"买","pinyin":"mai3","tone":3},{"han":"写","pinyin":"xie3","tone":3},{"han":"走","pinyin":"zou3","tone":3},{"han":"冷","pinyin":"leng3","tone":3},{"han":"老","pinyin":"lao3","tone":3},{"han":"表","pinyin":"biao3","tone":3},{"han":"脸","pinyin":"lian3","tone":3},{"han":"点","pinyin":"dian3","tone":3},{"han":"纸","pinyin":"zhi3","tone":3},{"han":"短","pinyin":"duan3","tone":3},{"han":"大","pinyin":"da4","tone":4},{"han":"去","pinyin":"qu4","tone":4},{"han":"胖","pinyin":"pang4","tone":4},{"han":"见","pinyin":"jian4","tone":4},{"han":"事","pinyin":"shi4","tone":4},{"han":"电","pinyin":"dian4","tone":4},{"han":"话","pinyin":"hua4","tone":4},{"han":"课","pinyin":"ke4","tone":4},{"han":"四","pinyin":"si4","tone":4},{"han":"六","pinyin":"liu4","tone":4},{"han":"病","pinyin":"bing4","tone":4},{"han":"送","pinyin":"song4","tone":4},{"han":"饭","pinyin":"fan4","tone":4},{"han":"菜","pinyin":"cai4","tone":4},{"han":"肉","pinyin":"rou4","tone":4},{"han":"面","pinyin":"mian4","tone":4},{"han":"站","pinyin":"zhan4","tone":4},{"han":"到","pinyin":"dao4","tone":4},{"han":"爱","pinyin":"ai4","tone":4},{"han":"叫","pinyin":"jiao4","tone":4},{"han":"问","pinyin":"wen4","tone":4},{"han":"对","pinyin":"dui4","tone":4},{"han":"快","pinyin":"kuai4","tone":4},{"han":"路","pinyin":"lu4","tone":4},{"han":"再","pinyin":"zai4","tone":4},{"han":"梦","pinyin":"meng4","tone":4},{"han":"住","pinyin":"zhu4","tone":4},{"han":"睡","pinyin":"shui4","tone":4},{"han":"坐","pinyin":"zuo4","tone":4},{"han":"变","pinyin":"bian4","tone":4}];
+const FAMILIES = [{"base":"ma","items":[{"han":"妈","pinyin":"ma1","tone":1},{"han":"麻","pinyin":"ma2","tone":2},{"han":"马","pinyin":"ma3","tone":3},{"han":"骂","pinyin":"ma4","tone":4}]},{"base":"ba","items":[{"han":"八","pinyin":"ba1","tone":1},{"han":"拔","pinyin":"ba2","tone":2},{"han":"把","pinyin":"ba3","tone":3},{"han":"爸","pinyin":"ba4","tone":4}]},{"base":"da","items":[{"han":"搭","pinyin":"da1","tone":1},{"han":"达","pinyin":"da2","tone":2},{"han":"打","pinyin":"da3","tone":3},{"han":"大","pinyin":"da4","tone":4}]},{"base":"tang","items":[{"han":"汤","pinyin":"tang1","tone":1},{"han":"糖","pinyin":"tang2","tone":2},{"han":"躺","pinyin":"tang3","tone":3},{"han":"烫","pinyin":"tang4","tone":4}]},{"base":"qing","items":[{"han":"青","pinyin":"qing1","tone":1},{"han":"情","pinyin":"qing2","tone":2},{"han":"请","pinyin":"qing3","tone":3},{"han":"庆","pinyin":"qing4","tone":4}]},{"base":"shi","items":[{"han":"师","pinyin":"shi1","tone":1},{"han":"十","pinyin":"shi2","tone":2},{"han":"使","pinyin":"shi3","tone":3},{"han":"是","pinyin":"shi4","tone":4}]},{"base":"fen","items":[{"han":"分","pinyin":"fen1","tone":1},{"han":"坟","pinyin":"fen2","tone":2},{"han":"粉","pinyin":"fen3","tone":3},{"han":"份","pinyin":"fen4","tone":4}]},{"base":"yi","items":[{"han":"衣","pinyin":"yi1","tone":1},{"han":"移","pinyin":"yi2","tone":2},{"han":"以","pinyin":"yi3","tone":3},{"han":"意","pinyin":"yi4","tone":4}]},{"base":"guo","items":[{"han":"锅","pinyin":"guo1","tone":1},{"han":"国","pinyin":"guo2","tone":2},{"han":"果","pinyin":"guo3","tone":3},{"han":"过","pinyin":"guo4","tone":4}]},{"base":"fei","items":[{"han":"飞","pinyin":"fei1","tone":1},{"han":"肥","pinyin":"fei2","tone":2},{"han":"匪","pinyin":"fei3","tone":3},{"han":"费","pinyin":"fei4","tone":4}]},{"base":"wen","items":[{"han":"温","pinyin":"wen1","tone":1},{"han":"文","pinyin":"wen2","tone":2},{"han":"稳","pinyin":"wen3","tone":3},{"han":"问","pinyin":"wen4","tone":4}]},{"base":"xian","items":[{"han":"先","pinyin":"xian1","tone":1},{"han":"咸","pinyin":"xian2","tone":2},{"han":"显","pinyin":"xian3","tone":3},{"han":"线","pinyin":"xian4","tone":4}]},{"base":"ying","items":[{"han":"英","pinyin":"ying1","tone":1},{"han":"赢","pinyin":"ying2","tone":2},{"han":"影","pinyin":"ying3","tone":3},{"han":"硬","pinyin":"ying4","tone":4}]},{"base":"zhu","items":[{"han":"猪","pinyin":"zhu1","tone":1},{"han":"竹","pinyin":"zhu2","tone":2},{"han":"主","pinyin":"zhu3","tone":3},{"han":"住","pinyin":"zhu4","tone":4}]},{"base":"yang","items":[{"han":"央","pinyin":"yang1","tone":1},{"han":"羊","pinyin":"yang2","tone":2},{"han":"养","pinyin":"yang3","tone":3},{"han":"样","pinyin":"yang4","tone":4}]}];
+const $ = id=>document.getElementById(id);
+const toneButtons = [...document.querySelectorAll('[data-tone]')];
+const PRIMARY='https://cdn.jsdelivr.net/gh/davinfifield/mp3-chinese-pinyin-sound@master/mp3/';
+const BACKUP='https://raw.githubusercontent.com/davinfifield/mp3-chinese-pinyin-sound/master/mp3/';
+// 同じ音声要素を使い回し、タップ後の自動再生が端末で許可されやすいようにする。
+let current=null, answered=false, mode='random', lastWords=[], audio=new Audio(), activePlayId=0, familyRemaining=[], streak=0, nextTimer=null;
+const sample = a=>a[Math.floor(Math.random()*a.length)];
+const accents = {a:'āáǎà',e:'ēéěè',i:'īíǐì',o:'ōóǒò',u:'ūúǔù',v:'ǖǘǚǜ'};
+function displayPinyin(p){
+  const tone=Number(p.slice(-1));const base=p.slice(0,-1);
+  let i=base.indexOf('a');if(i<0)i=base.indexOf('e');
+  if(i<0 && base.includes('ou'))i=base.indexOf('o');
+  if(i<0 && base.includes('iu'))i=base.indexOf('u',base.indexOf('iu'));
+  if(i<0 && base.includes('ui'))i=base.indexOf('i',base.indexOf('ui'));
+  if(i<0){for(let j=base.length-1;j>=0;j--){if('aeiouv'.includes(base[j])){i=j;break;}}}
+  if(i<0)return p;return base.slice(0,i)+accents[base[i]][tone-1]+base.slice(i+1);
+}
+function stopAudio(){activePlayId++;audio.pause();audio.onended=null;audio.onerror=null;audio.removeAttribute('src');}
+function audioFile(pinyin){
+  stopAudio();
+  const playId=activePlayId;
+  let backup=false;
+  const a = audio; a.preload='auto';
+  a.onended=()=>{if(playId===activePlayId)$('message').textContent=answered?'🔊 を押すと、お題をもう一度聞けます':'何度でも聞き直せます';};
+  a.onerror=()=>{
+    if(playId!==activePlayId)return;
+    if(!backup){backup=true;a.src=BACKUP+encodeURIComponent(pinyin)+'.mp3';a.load();a.play().catch(e=>showError(playId,e));}
+    else showError(playId);
+  };
+  a.src=PRIMARY+encodeURIComponent(pinyin)+'.mp3';
+  a.play().catch(()=>{if(!backup && playId===activePlayId){backup=true;a.src=BACKUP+encodeURIComponent(pinyin)+'.mp3';a.load();a.play().catch(e=>showError(playId,e));}else showError(playId);});
+}
+function showError(id,error){if(id!==activePlayId)return;$('message').textContent=error?.name==='NotAllowedError'?'自動再生が制限されています。「音声を聞く」を押してください。':'音声を読み込めません。通信環境を確認し、もう一度押してください。';}
+// 回答時の効果音はWeb Audio APIでその場で合成する。外部音声ファイル不要。
+// 出題音声（中国語のMP3）とは独立させ、短く控えめな音量にする。
+let feedbackAudioContext=null;
+function feedbackNote(ctx,frequency,start,duration,volume,type='sine',endFrequency=null){
+  const oscillator=ctx.createOscillator();
+  const gain=ctx.createGain();
+  oscillator.type=type;
+  oscillator.frequency.setValueAtTime(frequency,start);
+  if(endFrequency!==null)oscillator.frequency.exponentialRampToValueAtTime(endFrequency,start+duration);
+  gain.gain.setValueAtTime(0.0001,start);
+  gain.gain.exponentialRampToValueAtTime(volume,start+0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001,start+duration);
+  oscillator.connect(gain);
+  gain.connect(ctx.destination);
+  oscillator.start(start);
+  oscillator.stop(start+duration+0.02);
+}
+function playFeedback(correct,streakCount=0){
+  try{
+    const Ctx=window.AudioContext||window.webkitAudioContext;
+    if(!Ctx)return; // 非対応の環境では無音のまま続行する
+    if(!feedbackAudioContext)feedbackAudioContext=new Ctx();
+    const ctx=feedbackAudioContext;
+    if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+    const t=ctx.currentTime+0.012;
+    if(correct && [3,5,10].includes(streakCount)){
+      // 節目の連続正解は通常の「ピンコン♪」に替えて、上昇する短い祝福音。
+      // 10問連続のファンファーレも、次問への自動切り替え前にほぼ終了する長さにする。
+      const notes = streakCount===10
+        ? [523.25,659.25,783.99,1046.50,1318.51]
+        : streakCount===5
+        ? [523.25,659.25,783.99,1046.50]
+        : [659.25,783.99,1046.50];
+      const gap=streakCount===10?0.155:0.16;
+      notes.forEach((hz,i)=>{
+        const last=i===notes.length-1;
+        feedbackNote(ctx,hz,t+i*gap,last?0.34:0.18,last?0.065:0.047,'sine');
+      });
+      // 5問・10問連続の最後だけ和音を添えて達成感を演出。
+      if(streakCount>=5){
+        const finalStart=t+(notes.length-1)*gap;
+        feedbackNote(ctx,659.25,finalStart,0.34,0.025,'sine');
+      }
+    }else if(correct){
+      // 普段の正解はこれまでどおり「ピンコン♪」
+      feedbackNote(ctx,784,t,0.16,0.07,'sine');
+      feedbackNote(ctx,587.33,t+0.16,0.25,0.085,'sine');
+    }else{
+      // 「ブー」：短く低い不正解音（音量は控えめ）
+      feedbackNote(ctx,220,t,0.31,0.065,'triangle',185);
+    }
+  }catch(e){
+    // 効果音が使えなくても、クイズ本体は続けられる
+  }
+}
+function getQuestion(){
+  if(mode==='same'){
+    if(!familyRemaining.length){
+      const pool=FAMILIES.filter(f=>!lastWords.includes(f.base));
+      const f=sample(pool.length?pool:FAMILIES);
+      lastWords.push(f.base);lastWords=lastWords.slice(-4);
+      familyRemaining=f.items.slice();
+      for(let i=familyRemaining.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[familyRemaining[i],familyRemaining[j]]=[familyRemaining[j],familyRemaining[i]];}
+    }
+    return familyRemaining.pop();
+  }
+  const pool=WORDS.filter(w=>!lastWords.includes(w.pinyin));
+  const w=sample(pool.length?pool:WORDS);
+  lastWords.push(w.pinyin);lastWords=lastWords.slice(-7);
+  return w;
+}
+function newQuestion(){
+  if(nextTimer!==null){clearTimeout(nextTimer);nextTimer=null;}
+  stopAudio();current=getQuestion();answered=false;
+  $('message').textContent='何度でも聞き直せます';
+  const a=$('answer');a.hidden=true;a.className='answer';a.innerHTML='';
+  toneButtons.forEach(b=>{b.disabled=false;b.className='tone';b.setAttribute('aria-pressed','false');});
+}
+function playTarget(){if(!current)return;$('message').textContent='再生中…';audioFile(current.pinyin);}
+function answer(tone){
+  if(answered || !current)return;
+  answered=true;stopAudio();
+  const correct=tone===current.tone;
+  streak=correct?streak+1:0;
+  playFeedback(correct,streak);
+  $('streakCount').textContent=String(streak);
+  const milestone=correct && [3,5,10].includes(streak);
+  const indicator=$('streak');
+  indicator.classList.remove('celebrate');
+  if(milestone){void indicator.offsetWidth;indicator.classList.add('celebrate');}
+  const answer=$('answer');answer.hidden=false;answer.className='answer'+(correct?' success':' wrong');
+  const heading=document.createElement('div');heading.className='line1';
+  heading.textContent=correct?'✓ 正解！ '+streak+'問連続！'+(milestone?' 🎉':''):'残念！ 正解は第'+current.tone+'声';
+  const detail=document.createElement('div');detail.className='detail';
+  const han=document.createElement('strong');han.textContent=current.han;
+  detail.appendChild(han);
+  detail.append(displayPinyin(current.pinyin)+'（第'+current.tone+'声）');
+  answer.replaceChildren(heading,detail);
+  if(mode==='same'){
+    const tiny=document.createElement('div');tiny.className='minor';tiny.textContent='同じ音節で4つの声調を練習します';answer.appendChild(tiny);
+  }
+  toneButtons.forEach(b=>{
+    const t=Number(b.dataset.tone);b.disabled=true;
+    b.className='tone '+(t===current.tone?'correct':t===tone?'incorrect':'muted');
+    b.setAttribute('aria-pressed',String(t===tone));
+  });
+  $('message').textContent='🔊 を押すと、お題をもう一度聞けます';
+  // 答え合わせを1秒間見せたら、操作なしで次の問題と音声へ進む。
+  nextTimer=setTimeout(()=>{nextTimer=null;newQuestion();playTarget();},1000);
+}
+document.querySelectorAll('input[name="mode"]').forEach(b=>b.addEventListener('change',()=>{mode=b.value;lastWords=[];familyRemaining=[];newQuestion();}));
+$('play').addEventListener('click',playTarget);
+toneButtons.forEach(b=>b.addEventListener('click',()=>answer(Number(b.dataset.tone))));
+newQuestion();
+</script>
+</body>
+</html>
